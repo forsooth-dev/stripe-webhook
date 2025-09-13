@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 export const config = {
   api: {
-    bodyParser: false, // required for Stripe webhooks
+    bodyParser: false,
   },
 };
 
@@ -21,14 +21,8 @@ export default async function handler(req, res) {
   let event;
 
   try {
-    // Use raw buffer for signature verification
     const buf = await buffer(req);
-
-    event = stripe.webhooks.constructEvent(
-      buf.toString(),
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(buf.toString(), sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -38,37 +32,40 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const customerEmail = session.customer_details.email;
 
-    // Retrieve line items
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
 
-    // Map Price IDs → public URLs of PDFs
+    // Map Price IDs → PDF URLs
     const productFiles = {
-      "prod_T32b3o2rnKw8ze": "https://stripe-webhook-delta-pied.vercel.app/public/files/product1.pdf",
-      "price_67890": "https://stripe-webhook-delta-pied.vercel.app/public/files/product2.pdf",
-      "price_ABCDE": "https://stripe-webhook-delta-pied.vercel.app/public/files/product3.pdf",
+      "price_1ABCxyz123": "https://stripe-webhook-delta-pied.vercel.app/files/product1.pdf",
+      "price_1DEFxyz456": "https://stripe-webhook-delta-pied.vercel.app/files/product2.pdf",
+      "price_1GHIxyz789": "https://stripe-webhook-delta-pied.vercel.app/files/product3.pdf",
     };
 
-    // Build attachments array
-    const attachments = lineItems.data
-      .map((item) => {
-        const pdfUrl = productFiles[item.price.id];
-        if (pdfUrl) {
-          return {
-            filename: `${item.description}.pdf`,
-            path: pdfUrl, // Nodemailer will fetch from URL
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
+    const attachments = [];
+
+    lineItems.data.forEach((item) => {
+      console.log("📝 Stripe line item:", {
+        description: item.description,
+        priceId: item.price.id,
+        productId: item.price.product,
+        quantity: item.quantity,
+      });
+
+      const pdfUrl = productFiles[item.price.id];
+      if (pdfUrl) {
+        attachments.push({
+          filename: `${item.description || "Product"}.pdf`,
+          path: pdfUrl,
+        });
+      }
+    });
 
     if (attachments.length > 0) {
-      // Configure transporter
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
           user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS, // App Password if 2FA is enabled
+          pass: process.env.EMAIL_PASS,
         },
       });
 
@@ -87,7 +84,7 @@ export default async function handler(req, res) {
         console.error("❌ Failed to send email:", err);
       }
     } else {
-      console.warn("⚠️ No PDF attachments found for this purchase.");
+      console.warn("⚠️ No PDF attachments found for this purchase. Check price IDs above.");
     }
   }
 
