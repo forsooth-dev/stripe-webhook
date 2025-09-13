@@ -1,7 +1,16 @@
 import Stripe from "stripe";
 import nodemailer from "nodemailer";
+import { buffer } from "micro"; // ⬅️ NEW
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
+
+export const config = {
+  api: {
+    bodyParser: false, // ⛔ required for Stripe
+  },
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -12,14 +21,16 @@ export default async function handler(req, res) {
   let event;
 
   try {
-    // Stripe requires raw body parsing
+    // ⬅️ use raw buffer, not req.body
+    const buf = await buffer(req);
+
     event = stripe.webhooks.constructEvent(
-      req.body,
+      buf.toString(),
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("Webhook signature verification failed.", err.message);
+    console.error("❌ Webhook signature verification failed.", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -27,7 +38,7 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const customerEmail = session.customer_details.email;
 
-    // Get line items (to know what was purchased)
+    // Get line items
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
 
     // Map Price IDs → PDFs
@@ -37,7 +48,7 @@ export default async function handler(req, res) {
       "price_ABCDE": "./files/product3.pdf",
     };
 
-    // Collect all attachments for this order
+    // Collect attachments
     const attachments = lineItems.data
       .map((item) => {
         const pdfPath = productFiles[item.price.id];
@@ -49,7 +60,6 @@ export default async function handler(req, res) {
       .filter(Boolean);
 
     if (attachments.length > 0) {
-      // Email setup
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -58,7 +68,6 @@ export default async function handler(req, res) {
         },
       });
 
-      // Send email with all PDFs
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: customerEmail,
@@ -73,10 +82,3 @@ export default async function handler(req, res) {
 
   res.json({ received: true });
 }
-
-// Needed for Stripe webhook verification
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
