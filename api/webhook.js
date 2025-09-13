@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
     // Map Price IDs → PDF URLs
     const productFiles = {
-      "price_1S6wVuQwAanXfFIVsxt5i6We": "https://stripe-webhook-delta-pied.vercel.app/files/product1.pdf",
+      "price_1S6wVuQwAanXfFIVsxt5i6We": "https://stripe-webhook-delta-pied.vercel.app/files/Fruit of the Spirit Learning Activities.pdf",
       "price_1DEFxyz456": "https://stripe-webhook-delta-pied.vercel.app/files/product2.pdf",
       "price_1GHIxyz789": "https://stripe-webhook-delta-pied.vercel.app/files/product3.pdf",
     };
