@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
     // Map Price IDs → PDFs
     const productFiles = {
-      "price_12345": "./files/product1.pdf",
+      "prod_T32b3o2rnKw8ze": "./files/product1.pdf",
       "price_67890": "./files/product2.pdf",
       "price_ABCDE": "./files/product3.pdf",
     };
