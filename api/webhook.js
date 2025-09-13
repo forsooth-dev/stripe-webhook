@@ -43,7 +43,7 @@ export default async function handler(req, res) {
 
     // Map Price IDs → PDFs
     const productFiles = {
-      "prod_T32b3o2rnKw8ze": "./files/product1.pdf",
+      "prod_T32b3o2rnKw8ze": "https://stripe-webhook-delta-pied.vercel.app/public/files/product1.pdf",
       "price_67890": "./files/product2.pdf",
       "price_ABCDE": "./files/product3.pdf",
     };
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
           pass: process.env.EMAIL_PASS,
         },
       });
-
+      console.log("📩 Preparing to send email to:", customerEmail, attachments);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: customerEmail,
